@@ -4,7 +4,10 @@
 \alias{pkg_simil_mat}
 \title{pkg_simil_mat}
 \usage{
-pkg_simil_mat()
+pkg_simil_mat(verbose = FALSE)
+}
+\arguments{
+\item{verbose}{If \code{TRUE}, display progress messages}
 }
 \description{
 Generate a similarity matrix between packages based on their textual
