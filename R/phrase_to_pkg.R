@@ -28,6 +28,8 @@ phrase_to_pkg <- function (phrase)
 
     i <- which (pkgs$Package == nm)
     message ("-----", nm, "-----")
+    message (pkgs$Title [i])
+    message ("-----", rep ("-", nchar (nm)), "-----")
     message (pkgs$Description [i])
 }
 
