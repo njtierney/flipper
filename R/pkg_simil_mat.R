@@ -25,4 +25,7 @@ pkg_simil_mat <- function (verbose = FALSE)
         message (paste0 ('Generating similarity matrix between ',
                          'package descriptions ...'))
     quanteda::textstat_simil (pkg_dfm, names (pkg_txt))
+    #1 - quanteda::textstat_dist (pkg_dfm, names (pkg_txt))
+    #quanteda::textstat_simil (pkg_dfm, names (pkg_txt),
+    #                          method = "cosine")
 }
