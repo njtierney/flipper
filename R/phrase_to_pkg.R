@@ -39,7 +39,7 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
         {
             col_black <- "\033[30m"
             col_blue <- "\033[34m"
-            col0 <- "\033[39m"
+            col0 <- "\033[39m\033[49m"
 
             for (i in seq (nrow (pkgs)))
             {
@@ -73,13 +73,13 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
 highlight_phrase <- function (phrase, txt, col = "black")
 {
     if (col == "black")
-        col <- "\033[30m"
+        col <- "\033[30m\033[47m"
     else if (col == "red")
-        col <- "\033[31m"
+        col <- "\033[31m\033[47m"
     else if (col == "green")
-        col <- "\033[32m"
+        col <- "\033[32m\033[47m"
     else if (col == "blue")
-        col <- "\033[34m"
+        col <- "\033[34m\033[47m"
 
     col_red <- "\033[31m\033[1m\033[43m" # 1m = bold; 43m = Yellow BG
     col0 <- "\033[22m\033[39m\033[49m" # 22m = normal weight; 49m = normal BG
@@ -93,6 +93,7 @@ highlight_phrase <- function (phrase, txt, col = "black")
         txt_out <- paste0 (txt_out, col_red, phrase, col0,
                            col, txt [i])
     }
+    txt_out <- paste0 (txt_out, col0)
 
     return (txt_out)
 }
