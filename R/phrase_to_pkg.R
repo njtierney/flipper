@@ -27,8 +27,9 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
     names (pkg_txt) <- pkgs$Package
 
     # exact = FALSE not yet implemented
-    indx <- which (grepl (phrase, pkg_txt))
-    pkgs <- cbind (pkgs$Package, pkgs$Title, pkgs$Description) [indx, ]
+    indx <- which (grepl (phrase, pkg_txt, ignore.case = TRUE))
+    pkgs <- cbind (pkgs$Package, pkgs$Title, pkgs$Description) [indx, ,
+                                                                drop = FALSE]
     if (length (indx) > 0)
     {
         pkgs <- tibble::as.tibble (pkgs)
@@ -36,14 +37,20 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
 
         if (screen_dump)
         {
+            col_black <- "\033[30m"
+            col_blue <- "\033[34m"
+            col0 <- "\033[39m"
+
             for (i in seq (nrow (pkgs)))
             {
-                message ("-----", pkgs$Package [i], "-----")
-                message (pkgs$Title [i])
-                message ("-----", rep ("-", nchar (pkgs$Package [i])), "-----")
-                message (pkgs$Description [i])
-                message ("-----", rep ("-", nchar (pkgs$Package [i])),
-                         "-----\n")
+                message (paste0 (col_blue, "-----", pkgs$Package [i], "-----",
+                                 col0))
+                message (highlight_phrase (phrase, pkgs$Title [i], col = "blue"))
+                d1 <- "------"
+                d2 <- paste0 (rep ("-", nchar (pkgs$Package [i])), collapse = "")
+                message (paste0 (col_blue, d1, d2, d1, col0))
+                message (highlight_phrase (phrase, pkgs$Description [i], col = "black"))
+                message (paste0 (col_black, d1, d2, d1, col0, "\n"))
 
                 if (open_url)
                 {
@@ -56,6 +63,38 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
     }
 
     return (pkgs)
+}
+
+#' highlight_phrase
+#'
+#' highlights specified \code{phrase} in blue while remining text is printed in
+#' \code{col}
+#' @noRd
+highlight_phrase <- function (phrase, txt, col = "black")
+{
+    if (col == "black")
+        col <- "\033[30m"
+    else if (col == "red")
+        col <- "\033[31m"
+    else if (col == "green")
+        col <- "\033[32m"
+    else if (col == "blue")
+        col <- "\033[34m"
+
+    col_red <- "\033[31m\033[1m\033[43m" # 1m = bold; 43m = Yellow BG
+    col0 <- "\033[22m\033[39m\033[49m" # 22m = normal weight; 49m = normal BG
+
+    # subsitute case of phrase exactly as given:
+    txt <- gsub (phrase, phrase, txt, ignore.case = TRUE)
+    txt <- strsplit (txt, phrase) [[1]]
+    txt_out <- paste0 (col, txt [1], col0)
+    for (i in seq (txt) [-1])
+    {
+        txt_out <- paste0 (txt_out, col_red, phrase, col0,
+                           col, txt [i])
+    }
+
+    return (txt_out)
 }
 
 #' phrase_to_pkg
