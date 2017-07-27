@@ -7,7 +7,8 @@ Depends: R (>= 3.4.0)
 License: GPL-3
 Encoding: UTF-8
 Imports:
-    quanteda
+    quanteda,
+    tibble
 URL: https://github.com/ropenscilabs/flipper
 BugReports: https://github.com/ropenscilabs/flipper/issues
 LazyData: true

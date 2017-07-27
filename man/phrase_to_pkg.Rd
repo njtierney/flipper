@@ -16,3 +16,7 @@ screen.
 \description{
 Finds the package that most closely matches a given text phrase.
 }
+\note{
+This function is intended to extract a single package from which to
+start *flipping*.
+}
