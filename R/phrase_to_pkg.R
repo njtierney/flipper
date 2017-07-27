@@ -62,7 +62,7 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
         }
     }
 
-    return (pkgs)
+    invisible (pkgs)
 }
 
 #' highlight_phrase

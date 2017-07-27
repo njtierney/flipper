@@ -1,0 +1,32 @@
+---
+title: "flipper: Makes discovering new R packages flipping easy"
+output:
+  rmarkdown::html_vignette:
+    self_contained: no
+
+  md_document:
+    variant: markdown_github
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r opts, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  warning = TRUE,
+  message = TRUE,
+  width = 120,
+  comment = "#>",
+  fig.retina = 2,
+  fig.path = "README-"
+)
+```
+
+[![Project Status: Concept.](http://www.repostatus.org/badges/latest/concept.svg)](http://www.repostatus.org/#concept)
+
+# flipper
+
+Some existing work found [here](https://github.com/njtierney/cranscan)
+
+
+![img](https://user-images.githubusercontent.com/6697851/28676976-7686e070-72ec-11e7-93aa-9062d5809711.png)
