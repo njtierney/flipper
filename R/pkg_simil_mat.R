@@ -15,10 +15,11 @@ pkg_simil_mat <- function (verbose = FALSE)
                       collapse = " ")
     pkg_txt <- gsub ("\n", " ", pkg_txt)
     names (pkg_txt) <- pkgs$Package
-    pkg_corpus <- quanteda::corpus (pkg_txt)
+    pkg_corpus <- quanteda::corpus (pkg_txt) %>%
+        quanteda::char_to_lower ()
     pkg_dfm <- quanteda::dfm (pkg_corpus,
                               remove = quanteda::stopwords ("english"),
-                              stem = TRUE,
+                              stem = FALSE,
                               remove_punct = TRUE,
                               verbose = verbose)
     if (verbose)

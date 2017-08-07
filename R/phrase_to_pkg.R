@@ -5,9 +5,9 @@
 #' @param phrase of one or more words.
 #' @param screen_dump If \code{TRUE}, package titles and descriptions are output to
 #' screen in a nicely formatted manner.
-#' @param exact If \code{TRUE}, only packages with titles or descriptions which exactly
-#' match the given phrase are returned; otherwise the \code{n} best matches are
-#' returned.
+#' @param exact If \code{TRUE}, only packages with titles or descriptions which
+#' exactly match the given phrase are returned; otherwise the \code{n} best
+#' matches are returned.
 #' @param n For \code{exact = FALSE}, the number of best matches to be returned.
 #' @param open_url If \code{TRUE}, open CRAN web pages of matching packages.
 #'
@@ -28,8 +28,8 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
 
     # exact = FALSE not yet implemented
     indx <- which (grepl (phrase, pkg_txt, ignore.case = TRUE))
-    pkgs <- cbind (pkgs$Package, pkgs$Title, pkgs$Description) [indx, ,
-                                                                drop = FALSE]
+    pkgs <- cbind (pkgs$Package, pkgs$Title,
+                   pkgs$Description) [indx, , drop = FALSE] #nolint
     if (length (indx) > 0)
     {
         pkgs <- tibble::as.tibble (pkgs)
@@ -45,11 +45,14 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
             {
                 message (paste0 (col_blue, "-----", pkgs$Package [i], "-----",
                                  col0))
-                message (highlight_phrase (phrase, pkgs$Title [i], col = "blue"))
+                message (highlight_phrase (phrase, pkgs$Title [i],
+                                           col = "blue"))
                 d1 <- "------"
-                d2 <- paste0 (rep ("-", nchar (pkgs$Package [i])), collapse = "")
+                d2 <- paste0 (rep ("-", nchar (pkgs$Package [i])),
+                              collapse = "")
                 message (paste0 (col_blue, d1, d2, d1, col0))
-                message (highlight_phrase (phrase, pkgs$Description [i], col = "black"))
+                message (highlight_phrase (phrase, pkgs$Description [i],
+                                           col = "black"))
                 message (paste0 (col_black, d1, d2, d1, col0, "\n"))
 
                 if (open_url)
@@ -119,73 +122,54 @@ phrase_to_pkg <- function (phrase)
     pkg_txt <- gsub ("\n", " ", pkg_txt)
     names (pkg_txt) <- pkgs$Package
 
-    phrase <- parse_phrase (phrase)
-    wd <- sort (word_dists (phrase, pkg_txt))
-    indx <- which (wd <= 1)
-    if (length (indx) > 0)
-        nm <- names (wd [indx] [ceiling (runif (1) * length (indx))])
-    else
-        nm <- names (which.min (wd))
+    pkg_corpus <- pkg_txt %>% quanteda::char_tolower () %>%
+                    quanteda::corpus ()
+    pkg_dfm <- quanteda::dfm (pkg_corpus,
+                              remove = quanteda::stopwords ("english"),
+                              stem = TRUE,
+                              remove_punct = TRUE,
+                              verbose = FALSE)
+
+    phrase <- quanteda::tokens (phrase, remove_punct = TRUE,
+                                remove_symbols = TRUE) %>%
+                quanteda::tokens_wordstem () %>%
+                as.character ()
+
+    phrase <- phrase [which (phrase %in% quanteda::featnames (pkg_dfm))]
+    pkg_dfm2 <- pkg_dfm [, phrase]
+    indx <- apply (pkg_dfm2, 1, function (i) sum (i > 0))
+    pkg_dfm2 <- pkg_dfm2 [which (indx == max (indx)), ]
+
+    pkg_corpus2 <- pkg_corpus [which (indx == max (indx))]
+
+    pkg_names <- quanteda::docnames (pkg_dfm2)
+    s <- rep (NA, length (pkg_names))
+    for (i in seq (pkg_names))
+    {
+        pos <- sapply (phrase, function (j)
+                       quanteda::kwic (pkg_corpus2 [[i]], j,
+                                       valuetype = "regex")$from)
+        npos <- which (lapply (pos, length) == 0)
+        pos [npos] <- NULL
+
+        combs <- combn (length (pos), 2)
+        dmin <- rep (NA, ncol (combs))
+        for (j in seq (ncol (combs)))
+        {
+            pj1 <- pos [[combs [1, j] ]]
+            pj2 <- pos [[combs [2, j] ]]
+            dj1 <- matrix (pj1, nrow = length (pj1), ncol = length (pj2))
+            dj2 <- t (matrix (pj2, nrow = length (pj2), ncol = length (pj1)))
+            dmin [j] <- min (abs (dj1 - dj2))
+        }
+        s [i] <- max (dmin) + 1
+    }
+
+    nm <- pkg_names [which.min (s)]
 
     i <- which (pkgs$Package == nm)
     message ("-----", nm, "-----")
     message (pkgs$Title [i])
     message ("-----", rep ("-", nchar (nm)), "-----")
     message (pkgs$Description [i])
-}
-
-
-#' Split phrase and remove english stop words
-#' @noRd
-parse_phrase <- function (phrase)
-{
-    phrase <- strsplit (tolower (phrase), split = " ") [[1]]
-    phrase [!phrase %in% quanteda::stopwords ("english")]
-}
-
-#' Find positions of word in each package text
-#'
-#' @param w A single word
-#' @param pkgs Text list of all CRAN packages
-#'
-#' @note \code{quanteda} does not directly provide this ability
-#' @noRd
-wpos <- function (w, pkgs)
-{
-    p <- lapply (pkgs, function (i)
-                 grep (w, strsplit (tolower (i), split = " ") [[1]]))
-    pkg_names <- names (pkgs)
-    indx <- which (vapply (p, length, 1L) > 0)
-    p <- p [indx]
-    names (p) <- pkg_names [indx]
-    return (p)
-}
-
-#' Find minimal distances between a pair of words
-#'
-#' @param phrase A phrase of two words
-#' @param pkgs Text list of all CRAN packages
-#'
-#' @note Distances between phrases of > 2 words not yet implemented
-#' @noRd
-word_dists <- function (phrase, pkgs)
-{
-    pos <- lapply (phrase, function (i) wpos (i, pkgs))
-    indx1 <- which (names (pos [[1]]) %in% names (pos [[2]]))
-    indx2 <- which (names (pos [[2]]) %in% names (pos [[1]]))
-    pos [[1]] <- pos [[1]] [indx1]
-    pos [[2]] <- pos [[2]] [indx2]
-
-    d <- rep (NA, length (pos [[1]]))
-    for (i in seq (pos [[1]]))
-    {
-        p1 <- pos [[1]] [[i]]
-        p2 <- pos [[2]] [[i]]
-        m1 <- matrix (p1, nrow = length (p1), ncol = length (p2))
-        m2 <- t (matrix (p2, nrow = length (p2), ncol = length (p1)))
-        d [i] <- min (abs (m1 - m2))
-    }
-    names (d) <- names (pos [[1]])
-
-    return (d)
 }

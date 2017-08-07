@@ -2,6 +2,7 @@
 #'
 #' @name flipper
 #' @docType package
+#' @importFrom magrittr %>%
 #' @importFrom quanteda corpus stopwords textstat_simil
 #' @importFrom stats runif
 #' @importFrom tibble as.tibble
