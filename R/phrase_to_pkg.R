@@ -165,7 +165,8 @@ phrase_to_pkg <- function (phrase)
         s [i] <- max (dmin) + 1
     }
 
-    nm <- pkg_names [which.min (s)]
+    i <- which (s == min (s))
+    nm <- pkg_names [i] [sample (length (i), 1)]
 
     i <- which (pkgs$Package == nm)
     message ("-----", nm, "-----")
