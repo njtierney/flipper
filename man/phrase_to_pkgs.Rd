@@ -13,9 +13,9 @@ phrase_to_pkgs(phrase, screen_dump = TRUE, exact = TRUE, n = 10,
 \item{screen_dump}{If \code{TRUE}, package titles and descriptions are output to
 screen in a nicely formatted manner.}
 
-\item{exact}{If \code{TRUE}, only packages with titles or descriptions which exactly
-match the given phrase are returned; otherwise the \code{n} best matches are
-returned.}
+\item{exact}{If \code{TRUE}, only packages with titles or descriptions which
+exactly match the given phrase are returned; otherwise the \code{n} best
+matches are returned.}
 
 \item{n}{For \code{exact = FALSE}, the number of best matches to be returned.}
 
