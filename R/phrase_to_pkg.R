@@ -1,4 +1,74 @@
-#' phrase_to_pkg
+#' get_rpkgs
+#'
+#' Extract package titles and descriptions from the CRAN package db
+#'
+#' @param pkgs Result of \code{tools::CRAN_package_db}
+#' @return A list of texts, one for each package
+#' @noRd
+get_pkg_txt <- function (pkgs)
+{
+    pkg_txt <- apply (cbind (pkgs$Title, pkgs$Description), 1, paste,
+                      collapse = " ")
+    pkg_txt <- gsub ("\n", " ", pkg_txt)
+    names (pkg_txt) <- pkgs$Package
+
+    return (pkg_txt)
+}
+
+#' get_rcorpus
+#'
+#' Convert result of \code{get_pkg_txt} to a \code{quanteda::corpus} object
+#' 
+#' @param pkgs Result of \code{get_pkg_txt}
+#' @return Equivalent object as a \code{quanteda::corpus}
+#' @noRd
+get_rcorpus <- function (pkgs)
+{
+    pkgs %>% quanteda::char_tolower () %>%
+        quanteda::corpus ()
+}
+
+#' tokenize_phrase
+#'
+#' Convert a phrase to a vector of wordstem tokens, minus English-language
+#' stopwords.
+#'
+#' @param aphase A single character string
+#' @return Vector of tokens
+#' @noRd
+tokenize_phrase <- function (aphrase)
+{
+    tks <- quanteda::tokens (aphrase, remove_punct = TRUE,
+                             remove_symbols = TRUE) %>%
+                quanteda::tokens_wordstem (language = "english") %>%
+                as.character ()
+    tks [which (!tks %in% stopwords ("english"))]
+}
+
+#' phrase_in_dfm
+#' 
+#' Get index into documents of those which contain terms in phrase
+#'
+#' @param mycorpus \code{quanteda::corpus} of package texts
+#' @param aphrase tokenized phrase resulting from \code{tokenize_phrase}
+#' @return Numberic index of documents in corpus which contain at least two of
+#' the tokens in phrase
+#' @noRd
+phrase_in_dfm <- function (acorpus, aphrase)
+{
+    adfm <- quanteda::dfm (acorpus,
+                           remove = quanteda::stopwords ("english"),
+                           stem = TRUE,
+                           remove_punct = TRUE,
+                           verbose = FALSE)
+
+    aphrase <- aphrase [which (aphrase %in% quanteda::featnames (adfm))]
+    indx <- apply (adfm [, aphrase], 1, function (i) sum (i > 0))
+    which (indx > 1)
+}
+
+
+#' phrase_to_pkgs
 #'
 #' Finds the package that most closely matches a given text phrase.
 #'
@@ -13,21 +83,17 @@
 #'
 #' @return A \code{tibble} containing package names, titles, and descriptions.
 #'
-#' @note This function is *not* intended to be used like \link{phrase_to_pkg},
+#' @note This function is *not* intended to be used like \link{textsearch},
 #' rather it is just a helper function that dumps results to screen.
 #'
 #' @export
 phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
                             open_url = FALSE)
 {
-    pkgs <- tools::CRAN_package_db()
-    pkg_txt <- apply (cbind (pkgs$Title, pkgs$Description), 1, paste,
-                      collapse = " ")
-    pkg_txt <- gsub ("\n", " ", pkg_txt)
-    names (pkg_txt) <- pkgs$Package
+    pkgs <- get_pkg_txt ()
 
     # exact = FALSE not yet implemented
-    indx <- which (grepl (phrase, pkg_txt, ignore.case = TRUE))
+    indx <- which (grepl (phrase, pkgs, ignore.case = TRUE))
     pkgs <- cbind (pkgs$Package, pkgs$Title,
                    pkgs$Description) [indx, , drop = FALSE] #nolint
     if (length (indx) > 0)
@@ -73,7 +139,7 @@ phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
 #' highlights specified \code{phrase} in blue while remining text is printed in
 #' \code{col}
 #' @noRd
-highlight_phrase <- function (phrase, txt, col = "black")
+highlight_phrase <- function (aphrase, txt, col = "black")
 {
     if (col == "black")
         col <- "\033[30m\033[47m"
@@ -88,12 +154,12 @@ highlight_phrase <- function (phrase, txt, col = "black")
     col0 <- "\033[22m\033[39m\033[49m" # 22m = normal weight; 49m = normal BG
 
     # subsitute case of phrase exactly as given:
-    txt <- gsub (phrase, phrase, txt, ignore.case = TRUE)
-    txt <- strsplit (txt, phrase) [[1]]
+    txt <- gsub (aphrase, aphrase, txt, ignore.case = TRUE)
+    txt <- strsplit (txt, aphrase) [[1]]
     txt_out <- paste0 (col, txt [1], col0)
     for (i in seq (txt) [-1])
     {
-        txt_out <- paste0 (txt_out, col_red, phrase, col0,
+        txt_out <- paste0 (txt_out, col_red, aphrase, col0,
                            col, txt [i])
     }
     txt_out <- paste0 (txt_out, col0)
@@ -101,7 +167,7 @@ highlight_phrase <- function (phrase, txt, col = "black")
     return (txt_out)
 }
 
-#' phrase_to_pkg
+#' textsearch
 #'
 #' Finds the package that most closely matches a given text phrase.
 #'
@@ -114,50 +180,42 @@ highlight_phrase <- function (phrase, txt, col = "black")
 #' start *flipping*.
 #'
 #' @export
-phrase_to_pkg <- function (phrase)
+textsearch <- function (phrase)
 {
-    pkgs <- tools::CRAN_package_db()
-    pkg_txt <- apply (cbind (pkgs$Title, pkgs$Description), 1, paste,
-                      collapse = " ")
-    pkg_txt <- gsub ("\n", " ", pkg_txt)
-    names (pkg_txt) <- pkgs$Package
+    # punctutation and stop words are kept here in order to accurately estimate
+    # positions:
+    pkgs <- tools::CRAN_package_db ()
+    pkg_txts <- get_pkg_txt (pkgs) %>%
+                get_rcorpus() %>%
+                quanteda::texts () %>%
+                quanteda::tokens () %>%
+                quanteda::tokens_wordstem ()
 
-    pkg_corpus <- pkg_txt %>% quanteda::char_tolower () %>%
-                    quanteda::corpus ()
-    pkg_dfm <- quanteda::dfm (pkg_corpus,
-                              remove = quanteda::stopwords ("english"),
-                              stem = TRUE,
-                              remove_punct = TRUE,
-                              verbose = FALSE)
+    aphrase <- tokenize_phrase (phrase)
 
-    phrase <- quanteda::tokens (phrase, remove_punct = TRUE,
-                                remove_symbols = TRUE) %>%
-                quanteda::tokens_wordstem () %>%
-                as.character ()
+    indx <- phrase_in_dfm (pkg_txts, aphrase)
+    pkg_txts <- pkg_txts [indx]
 
-    phrase <- phrase [which (phrase %in% quanteda::featnames (pkg_dfm))]
-    pkg_dfm2 <- pkg_dfm [, phrase]
-    indx <- apply (pkg_dfm2, 1, function (i) sum (i > 0))
-    pkg_dfm2 <- pkg_dfm2 [which (indx == max (indx)), ]
+    pos <- quanteda::kwic (pkg_txts, aphrase, join = FALSE)
+    pos <- data.frame (docname = pos$docname,
+                       pos = pos$from,
+                       kw  = pos$keyword,
+                       stringsAsFactors = FALSE)
 
-    pkg_corpus2 <- pkg_corpus [which (indx == max (indx))]
-
-    pkg_names <- quanteda::docnames (pkg_dfm2)
-    s <- rep (NA, length (pkg_names))
+    pkg_names <- names (pkg_txts)
+    s <- nkw <- rep (NA, length (pkg_names))
     for (i in seq (pkg_names))
     {
-        pos <- sapply (phrase, function (j)
-                       quanteda::kwic (pkg_corpus2 [[i]], j,
-                                       valuetype = "regex")$from)
-        npos <- which (lapply (pos, length) == 0)
-        pos [npos] <- NULL
+        indx <- which (pos$docname == pkg_names [i])
+        posi <- split (pos$pos [indx], pos$kw [indx])
+        nkw [i] <- length (posi)
 
-        combs <- combn (length (pos), 2)
+        combs <- combn (length (posi), 2)
         dmin <- rep (NA, ncol (combs))
         for (j in seq (ncol (combs)))
         {
-            pj1 <- pos [[combs [1, j] ]]
-            pj2 <- pos [[combs [2, j] ]]
+            pj1 <- posi [[combs [1, j] ]]
+            pj2 <- posi [[combs [2, j] ]]
             dj1 <- matrix (pj1, nrow = length (pj1), ncol = length (pj2))
             dj2 <- t (matrix (pj2, nrow = length (pj2), ncol = length (pj1)))
             dmin [j] <- min (abs (dj1 - dj2))
@@ -165,12 +223,20 @@ phrase_to_pkg <- function (phrase)
         s [i] <- max (dmin) + 1
     }
 
-    i <- which (s == min (s))
-    nm <- pkg_names [i] [sample (length (i), 1)]
+    indx <- order (-nkw, s) # highest #keywords; lowest s
+    s <- s [indx]
+    nkw <- nkw [indx]
+    pkg_names <- pkg_names [indx]
+
+    i <- which (nkw == max (nkw))
+    j <- which (s [i] == min (s [i]))
+    nm <- pkg_names [i] [j] [sample (length (j), 1)]
 
     i <- which (pkgs$Package == nm)
     message ("-----", nm, "-----")
     message (pkgs$Title [i])
     message ("-----", rep ("-", nchar (nm)), "-----")
     message (pkgs$Description [i])
+
+    invisible (pkg_names)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/phrase_to_pkg.R
 \name{phrase_to_pkgs}
 \alias{phrase_to_pkgs}
-\title{phrase_to_pkg}
+\title{phrase_to_pkgs}
 \usage{
 phrase_to_pkgs(phrase, screen_dump = TRUE, exact = TRUE, n = 10,
   open_url = FALSE)
@@ -28,6 +28,6 @@ A \code{tibble} containing package names, titles, and descriptions.
 Finds the package that most closely matches a given text phrase.
 }
 \note{
-This function is *not* intended to be used like \link{phrase_to_pkg},
+This function is *not* intended to be used like \link{textsearch},
 rather it is just a helper function that dumps results to screen.
 }
