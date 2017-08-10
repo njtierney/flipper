@@ -54,16 +54,18 @@ tokenize_phrase <- function (aphrase)
 #' @return Numberic index of documents in corpus which contain at least two of
 #' the tokens in phrase
 #' @noRd
-phrase_in_dfm <- function (acorpus, aphrase)
+phrase_in_dfm <- function (aphrase)
 {
-    adfm <- quanteda::dfm (acorpus,
-                           remove = quanteda::stopwords ("english"),
-                           stem = TRUE,
-                           remove_punct = TRUE,
-                           verbose = FALSE)
+    #adfm <- quanteda::dfm (acorpus,
+    #                       select = aphrase,
+    #                       #remove = quanteda::stopwords ("english"),
+    #                       stem = TRUE,
+    #                       remove_punct = TRUE,
+    #                       verbose = FALSE)
+    load (file.path (tempdir (), "pkg_dfm.rda"))
 
-    aphrase <- aphrase [which (aphrase %in% quanteda::featnames (adfm))]
-    indx <- apply (adfm [, aphrase], 1, function (i) sum (i > 0))
+    aphrase <- aphrase [which (aphrase %in% quanteda::featnames (pkg_dfm))]
+    indx <- apply (pkg_dfm [, aphrase], 1, function (i) sum (i > 0))
     which (indx > 1)
 }
 
@@ -184,25 +186,28 @@ textsearch <- function (phrase)
 {
     # punctutation and stop words are kept here in order to accurately estimate
     # positions:
-    pkgs <- tools::CRAN_package_db ()
-    pkg_txts <- get_pkg_txt (pkgs) %>%
-                get_rcorpus() %>%
-                quanteda::texts () %>%
-                quanteda::tokens () %>%
-                quanteda::tokens_wordstem ()
+    #pkgs <- tools::CRAN_package_db ()
+
+    #pkg_txts <- get_pkg_txt (pkgs) %>%
+    #            get_rcorpus() %>%
+    #            quanteda::texts () %>%
+    #            quanteda::tokens () %>%
+    #            quanteda::tokens_wordstem ()
+    load (file.path (tempdir (),"qpkgs.rda"))
 
     aphrase <- tokenize_phrase (phrase)
 
-    indx <- phrase_in_dfm (pkg_txts, aphrase)
-    pkg_txts <- pkg_txts [indx]
+    #indx <- phrase_in_dfm (pkg_txts, aphrase)
+    indx <- phrase_in_dfm (aphrase)
+    qpkgs <- qpkgs [indx]
 
-    pos <- quanteda::kwic (pkg_txts, aphrase, join = FALSE)
+    pos <- quanteda::kwic (qpkgs, aphrase, join = FALSE)
     pos <- data.frame (docname = pos$docname,
                        pos = pos$from,
                        kw  = pos$keyword,
                        stringsAsFactors = FALSE)
 
-    pkg_names <- names (pkg_txts)
+    pkg_names <- names (qpkgs)
     s <- nkw <- rep (NA, length (pkg_names))
     for (i in seq (pkg_names))
     {
@@ -232,6 +237,7 @@ textsearch <- function (phrase)
     j <- which (s [i] == min (s [i]))
     nm <- pkg_names [i] [j] [sample (length (j), 1)]
 
+    load (file.path (tempdir (),"pkgs.rda"))
     i <- which (pkgs$Package == nm)
     message ("-----", nm, "-----")
     message (pkgs$Title [i])
