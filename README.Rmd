@@ -29,4 +29,4 @@ knitr::opts_chunk$set(
 Some existing work found [here](https://github.com/njtierney/cranscan)
 
 
-![img](https://user-images.githubusercontent.com/6697851/28676976-7686e070-72ec-11e7-93aa-9062d5809711.png)
+![img](https://user-images.githubusercontent.com/6697851/29385842-8433bf84-82d9-11e7-86b4-4514b6ba5f32.png)
