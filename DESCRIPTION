@@ -8,6 +8,7 @@ License: GPL-3
 Encoding: UTF-8
 Imports:
     magrittr,
+    memoise,
     quanteda,
     tibble
 URL: https://github.com/ropenscilabs/flipper

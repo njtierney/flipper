@@ -1,3 +1,7 @@
+#' memoised CRAN package database
+#' @noRd
+m_get_cran_pkgs <- memoise::memoise (function () tools::CRAN_package_db ())
+
 #' get_rpkgs
 #'
 #' Extract package titles and descriptions from the CRAN package db
@@ -14,6 +18,7 @@ get_pkg_txt <- function (pkgs)
 
     return (pkg_txt)
 }
+m_get_pkg_txt <- memoise::memoise (get_pkg_txt)
 
 #' get_rcorpus
 #'
@@ -27,6 +32,43 @@ get_rcorpus <- function (pkgs)
     pkgs %>% quanteda::char_tolower () %>%
         quanteda::corpus ()
 }
+m_get_rcorpus <- memoise::memoise (get_rcorpus)
+
+#' get_corpus_tokens
+#'
+#' Convert corpus to tokens
+#'
+#' @param pkg_txts Result of code{get_pkg_txt}
+#' @return Equivalent corpus in tokenized form
+#' @noRd
+get_corpus_tokens <- function (pkg_txts)
+{
+    pkg_txts %>%
+        quanteda::char_tolower () %>%
+        quanteda::corpus () %>%
+        quanteda::texts () %>%
+        quanteda::tokens () %>%
+        quanteda::tokens_wordstem ()
+}
+m_get_corpus_tokens <- memoise::memoise (get_corpus_tokens)
+
+#' get_package_dfm
+#'
+#' Get code{quanteta} Document Frequency Matrix (\code{dfm}) for all R packages
+#'
+#' @param pkg_txts Result of code{get_pkg_txt}
+#' @return Equivalent \code{dfm}
+#' @noRd
+get_package_dfm <- function (pkg_txts)
+{
+    quanteda::dfm (pkg_txts,
+                   remove = quanteda::stopwords ("english"),
+                   stem = TRUE,
+                   remove_punct = TRUE,
+                   verbose = FALSE)
+}
+m_get_package_dfm <- memoise::memoise (get_package_dfm)
+
 
 #' tokenize_phrase
 #'
@@ -54,92 +96,20 @@ tokenize_phrase <- function (aphrase)
 #' @return Numberic index of documents in corpus which contain at least two of
 #' the tokens in phrase
 #' @noRd
-phrase_in_dfm <- function (aphrase)
+phrase_in_dfm <- function (pkg_dfm, aphrase)
 {
-    #adfm <- quanteda::dfm (acorpus,
-    #                       select = aphrase,
-    #                       #remove = quanteda::stopwords ("english"),
-    #                       stem = TRUE,
-    #                       remove_punct = TRUE,
-    #                       verbose = FALSE)
-    load (file.path (tempdir (), "pkg_dfm.rda"))
-
     aphrase <- aphrase [which (aphrase %in% quanteda::featnames (pkg_dfm))]
     indx <- apply (pkg_dfm [, aphrase], 1, function (i) sum (i > 0))
     which (indx > 1)
 }
 
 
-#' phrase_to_pkgs
-#'
-#' Finds the package that most closely matches a given text phrase.
-#'
-#' @param phrase of one or more words.
-#' @param screen_dump If \code{TRUE}, package titles and descriptions are output to
-#' screen in a nicely formatted manner.
-#' @param exact If \code{TRUE}, only packages with titles or descriptions which
-#' exactly match the given phrase are returned; otherwise the \code{n} best
-#' matches are returned.
-#' @param n For \code{exact = FALSE}, the number of best matches to be returned.
-#' @param open_url If \code{TRUE}, open CRAN web pages of matching packages.
-#'
-#' @return A \code{tibble} containing package names, titles, and descriptions.
-#'
-#' @note This function is *not* intended to be used like \link{textsearch},
-#' rather it is just a helper function that dumps results to screen.
-#'
-#' @export
-phrase_to_pkgs <- function (phrase, screen_dump = TRUE, exact = TRUE, n = 10,
-                            open_url = FALSE)
-{
-    pkgs <- get_pkg_txt ()
-
-    # exact = FALSE not yet implemented
-    indx <- which (grepl (phrase, pkgs, ignore.case = TRUE))
-    pkgs <- cbind (pkgs$Package, pkgs$Title,
-                   pkgs$Description) [indx, , drop = FALSE] #nolint
-    if (length (indx) > 0)
-    {
-        pkgs <- tibble::as.tibble (pkgs)
-        names (pkgs) <- c ("Package", "Title", "Description")
-
-        if (screen_dump)
-        {
-            col_black <- "\033[30m"
-            col_blue <- "\033[34m"
-            col0 <- "\033[39m\033[49m"
-
-            for (i in seq (nrow (pkgs)))
-            {
-                message (paste0 (col_blue, "-----", pkgs$Package [i], "-----",
-                                 col0))
-                message (highlight_phrase (phrase, pkgs$Title [i],
-                                           col = "blue"))
-                d1 <- "------"
-                d2 <- paste0 (rep ("-", nchar (pkgs$Package [i])),
-                              collapse = "")
-                message (paste0 (col_blue, d1, d2, d1, col0))
-                message (highlight_phrase (phrase, pkgs$Description [i],
-                                           col = "black"))
-                message (paste0 (col_black, d1, d2, d1, col0, "\n"))
-
-                if (open_url)
-                {
-                    pkg_url <- paste0 ("https://cran.r-project.org/package=",
-                                       pkgs$Package [i])
-                    browseURL (pkg_url)
-                }
-            }
-        }
-    }
-
-    invisible (pkgs)
-}
 
 #' highlight_phrase
 #'
 #' highlights specified \code{phrase} in blue while remining text is printed in
 #' \code{col}
+#' @note Not used at present
 #' @noRd
 highlight_phrase <- function (aphrase, txt, col = "black")
 {
@@ -169,45 +139,38 @@ highlight_phrase <- function (aphrase, txt, col = "black")
     return (txt_out)
 }
 
-#' textsearch
+#' text_to_pkgs
 #'
-#' Finds the package that most closely matches a given text phrase.
+#' Order names of CRAN packages according to best matches with \code{phrase}
 #'
-#' @param phrase of one or more words.
-#'
-#' @return At present nothing; just prints package title and description to
-#' screen.
-#'
-#' @note This function is intended to extract a single package from which to
-#' start *flipping*.
-#'
-#' @export
-textsearch <- function (phrase)
+#' @param phrase A text phrase of arbitrary length
+#' @return \code{data.frame} containing minimal lengths of phrases containing
+#' word stems of phrase; numbers of tokens (\code{key_words}) matched; and names
+#' of corresponding packages. Results are sorted according to (potentially
+#' equal) best matches first.
+#' @noRd
+text_to_pkgs <- function (phrase)
 {
-    # punctutation and stop words are kept here in order to accurately estimate
-    # positions:
-    #pkgs <- tools::CRAN_package_db ()
-
-    #pkg_txts <- get_pkg_txt (pkgs) %>%
-    #            get_rcorpus() %>%
-    #            quanteda::texts () %>%
-    #            quanteda::tokens () %>%
-    #            quanteda::tokens_wordstem ()
-    load (file.path (tempdir (),"qpkgs.rda"))
+    if (!memoise::has_cache (m_get_cran_pkgs)())
+        message (paste0 ("The first textsearch takes a short while to ",
+                         "set up; subsequent calls will be much quicker"))
+    pkgs <- m_get_cran_pkgs ()
+    pkg_txts <- m_get_pkg_txt (pkgs)
+    pkg_dfm <- m_get_package_dfm (pkg_txts)
+    pkg_tokens <- m_get_corpus_tokens (pkg_txts)
 
     aphrase <- tokenize_phrase (phrase)
 
-    #indx <- phrase_in_dfm (pkg_txts, aphrase)
-    indx <- phrase_in_dfm (aphrase)
-    qpkgs <- qpkgs [indx]
+    indx <- phrase_in_dfm (pkg_dfm, aphrase)
+    pkg_tokens <- pkg_tokens [indx]
 
-    pos <- quanteda::kwic (qpkgs, aphrase, join = FALSE)
+    pos <- quanteda::kwic (pkg_tokens, aphrase, join = FALSE)
     pos <- data.frame (docname = pos$docname,
                        pos = pos$from,
                        kw  = pos$keyword,
                        stringsAsFactors = FALSE)
 
-    pkg_names <- names (qpkgs)
+    pkg_names <- names (pkg_tokens)
     s <- nkw <- rep (NA, length (pkg_names))
     for (i in seq (pkg_names))
     {
@@ -229,20 +192,79 @@ textsearch <- function (phrase)
     }
 
     indx <- order (-nkw, s) # highest #keywords; lowest s
-    s <- s [indx]
-    nkw <- nkw [indx]
-    pkg_names <- pkg_names [indx]
 
-    i <- which (nkw == max (nkw))
-    j <- which (s [i] == min (s [i]))
-    nm <- pkg_names [i] [j] [sample (length (j), 1)]
+    data.frame (min_phrase_len = s [indx],
+                num_key_words = nkw [indx],
+                pkg_names = pkg_names [indx],
+                stringsAsFactors = FALSE)
+}
 
-    load (file.path (tempdir (),"pkgs.rda"))
-    i <- which (pkgs$Package == nm)
-    message ("-----", nm, "-----")
-    message (pkgs$Title [i])
-    message ("-----", rep ("-", nchar (nm)), "-----")
-    message (pkgs$Description [i])
+#' one_random_pkg
+#'
+#' @param packages Result of \code{text_to_pkgs} function containing sorted
+#' \code{data.frame} of minimal phrase lengths, numbers of matched key words,
+#' and package names.
+#' @return Single random package chosen from potentially multiple best matches.
+#' @noRd
+one_random_pkg <- function (packages)
+{
 
-    invisible (pkg_names)
+    i <- which (packages$num_key_words == max (packages$num_key_words))
+    j <- which (packages$min_phrase_len [i] ==
+                min (packages$min_phrase_len [i]))
+    packages$pkg_names [i] [j] [sample (length (j), 1)]
+}
+
+
+#' textsearch
+#'
+#' Finds the package that most closely matches a given text phrase.
+#'
+#' @param phrase of one or more words.
+#' @param open_url If \code{TRUE}, open CRAN web pages of matching packages.
+#'
+#' @return At present nothing; just prints package title and description to
+#' screen.
+#'
+#' @note This function is intended to extract a single package from which to
+#' start *flipping*.
+#'
+#' @export
+textsearch <- function (phrase, open_url = FALSE)
+{
+    packages <- text_to_pkgs (phrase)
+    pkg_name <- one_random_pkg (packages)
+
+    pkgs <- m_get_cran_pkgs () # memoised here
+    i <- which (pkgs$Package == pkg_name)
+
+    pkgs <- cbind (pkgs$Package, pkgs$Title,
+                   pkgs$Description) [i, , drop = FALSE] #nolint
+    if (length (i) > 0)
+    {
+        pkgs <- tibble::as.tibble (pkgs)
+        names (pkgs) <- c ("Package", "Title", "Description")
+
+        col_black <- "\033[30m"
+        col_blue <- "\033[34m"
+        col_green <- "\033[32m"
+        col_red <- "\033[31m" # 1m = bold; 43m = Yellow BG
+        col0 <- "\033[39m\033[49m" # 49m = normal BG
+
+        message (paste0 (col_green, "-----", pkgs$Package, "-----",
+                         col0))
+        message (paste0 (col_green, "Title: ", pkgs$Title, col0))
+        d1 <- "------"
+        d2 <- paste0 (rep ("-", nchar (pkgs$Package)), collapse = "")
+        message (paste0 (col_green, d1, d2, d1, col0))
+        message (paste0 (col_blue, "Description: ", pkgs$Description, col0))
+        message (paste0 (col_green, d1, d2, d1, col0, "\n"))
+
+        if (open_url)
+        {
+            pkg_url <- paste0 ("https://cran.r-project.org/package=",
+                               pkgs$Package)
+            browseURL (pkg_url)
+        }
+    }
 }

@@ -3,6 +3,7 @@
 #' @name flipper
 #' @docType package
 #' @importFrom magrittr %>%
+#' @importFrom memoise memoise has_cache
 #' @importFrom quanteda char_tolower corpus dfm docnames featnames kwic
 #' @importFrom quanteda stopwords textstat_simil tokens tokens_wordstem
 #' @importFrom stats runif

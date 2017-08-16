@@ -4,10 +4,12 @@
 \alias{textsearch}
 \title{textsearch}
 \usage{
-textsearch(phrase)
+textsearch(phrase, open_url = FALSE)
 }
 \arguments{
 \item{phrase}{of one or more words.}
+
+\item{open_url}{If \code{TRUE}, open CRAN web pages of matching packages.}
 }
 \value{
 At present nothing; just prints package title and description to
