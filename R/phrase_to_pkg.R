@@ -245,10 +245,8 @@ textsearch <- function (phrase, open_url = FALSE)
         pkgs <- tibble::as.tibble (pkgs)
         names (pkgs) <- c ("Package", "Title", "Description")
 
-        col_black <- "\033[30m"
         col_blue <- "\033[34m"
         col_green <- "\033[32m"
-        col_red <- "\033[31m" # 1m = bold; 43m = Yellow BG
         col0 <- "\033[39m\033[49m" # 49m = normal BG
 
         message (paste0 (col_green, "-----", pkgs$Package, "-----",
