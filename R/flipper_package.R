@@ -9,5 +9,5 @@
 #' @importFrom stats runif
 #' @importFrom tibble as.tibble
 #' @importFrom tools CRAN_package_db
-#' @importFrom utils browseURL combn
+#' @importFrom utils browseURL combn menu
 NULL

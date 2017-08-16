@@ -215,6 +215,38 @@ one_random_pkg <- function (packages)
     packages$pkg_names [i] [j] [sample (length (j), 1)]
 }
 
+#' print_pkg
+#'
+#' Dump title and description of one R package to screen
+#'
+#' @param pkg name of package
+#' @noRd
+print_pkg <- function (pkg)
+{
+    pkgs <- m_get_cran_pkgs () # memoised here
+    i <- which (pkgs$Package == pkg)
+    if (length (i) == 0)
+        stop (paste0 ("R Package ", pkg, " does not exist"))
+
+    pkgs <- cbind (pkgs$Package, pkgs$Title,
+                   pkgs$Description) [i, , drop = FALSE] #nolint
+    pkgs <- tibble::as.tibble (pkgs)
+    names (pkgs) <- c ("Package", "Title", "Description")
+
+    col_blue <- "\033[34m"
+    col_green <- "\033[32m"
+    col0 <- "\033[39m\033[49m" # 49m = normal BG
+
+    message (paste0 (col_green, "-----", pkgs$Package, "-----",
+                     col0))
+    message (paste0 (col_green, "Title: ", pkgs$Title, col0))
+    d1 <- "------"
+    d2 <- paste0 (rep ("-", nchar (pkgs$Package)), collapse = "")
+    message (paste0 (col_green, d1, d2, d1, col0))
+    message (paste0 (col_blue, "Description: ", pkgs$Description, col0))
+    message (paste0 (col_green, d1, d2, d1, col0, "\n"))
+}
+
 
 #' textsearch
 #'
@@ -235,34 +267,16 @@ textsearch <- function (phrase, open_url = FALSE)
     packages <- text_to_pkgs (phrase)
     pkg_name <- one_random_pkg (packages)
 
+    print_pkg (pkg_name)
+
     pkgs <- m_get_cran_pkgs () # memoised here
     i <- which (pkgs$Package == pkg_name)
-
     pkgs <- cbind (pkgs$Package, pkgs$Title,
                    pkgs$Description) [i, , drop = FALSE] #nolint
-    if (length (i) > 0)
+    if (open_url)
     {
-        pkgs <- tibble::as.tibble (pkgs)
-        names (pkgs) <- c ("Package", "Title", "Description")
-
-        col_blue <- "\033[34m"
-        col_green <- "\033[32m"
-        col0 <- "\033[39m\033[49m" # 49m = normal BG
-
-        message (paste0 (col_green, "-----", pkgs$Package, "-----",
-                         col0))
-        message (paste0 (col_green, "Title: ", pkgs$Title, col0))
-        d1 <- "------"
-        d2 <- paste0 (rep ("-", nchar (pkgs$Package)), collapse = "")
-        message (paste0 (col_green, d1, d2, d1, col0))
-        message (paste0 (col_blue, "Description: ", pkgs$Description, col0))
-        message (paste0 (col_green, d1, d2, d1, col0, "\n"))
-
-        if (open_url)
-        {
-            pkg_url <- paste0 ("https://cran.r-project.org/package=",
-                               pkgs$Package)
-            browseURL (pkg_url)
-        }
+        pkg_url <- paste0 ("https://cran.r-project.org/package=",
+                           pkgs$Package)
+        browseURL (pkg_url)
     }
 }
