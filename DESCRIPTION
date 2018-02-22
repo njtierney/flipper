@@ -1,8 +1,11 @@
 Package: flipper
 Title: Flipping great way to discover R packages
 Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Authors@R: person("Mark", "Padgham", email = "mark.padgham@.com", role = c("aut", "cre"))
+Authors@R: c(
+    person("Mark", "Padgham", email="mark.padgham@email.com", role=c("aut", "cre")),
+    person("Nick", "Tierney", role="aut"))
+Description: Flipping great way to discover R package
 Depends: R (>= 3.4.0)
 License: GPL-3
 Encoding: UTF-8
