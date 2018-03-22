@@ -100,7 +100,7 @@ phrase_in_dfm <- function (pkg_dfm, aphrase)
 {
     aphrase <- aphrase [which (aphrase %in% quanteda::featnames (pkg_dfm))]
     indx <- apply (pkg_dfm [, aphrase], 1, function (i) sum (i > 0))
-    which (indx > 1)
+    which (indx > 1 | indx >= length (aphrase))
 }
 
 
@@ -171,29 +171,39 @@ text_to_pkgs <- function (phrase)
                        stringsAsFactors = FALSE)
 
     pkg_names <- names (pkg_tokens)
-    s <- nkw <- rep (NA, length (pkg_names))
+    phrase_len <- nkw <- rep (NA, length (pkg_names))
     for (i in seq (pkg_names))
     {
         indx <- which (pos$docname == pkg_names [i])
         posi <- split (pos$pos [indx], pos$kw [indx])
         nkw [i] <- length (posi)
 
-        combs <- combn (length (posi), 2)
-        dmin <- rep (NA, ncol (combs))
-        for (j in seq (ncol (combs)))
+        if (length (posi) == 1)
         {
-            pj1 <- posi [[combs [1, j] ]]
-            pj2 <- posi [[combs [2, j] ]]
-            dj1 <- matrix (pj1, nrow = length (pj1), ncol = length (pj2))
-            dj2 <- t (matrix (pj2, nrow = length (pj2), ncol = length (pj1)))
-            dmin [j] <- min (abs (dj1 - dj2))
+            # For single-token phrases, use first position as substitute for
+            # minimal phrase length, so earlier positions are preferred. Keyword
+            # can still occur multiple times, so min is necessary
+            phrase_len [i] <- min (posi [[1]])
+        } else
+        {
+            combs <- combn (length (posi), 2)
+            dmin <- rep (NA, ncol (combs))
+            for (j in seq (ncol (combs)))
+            {
+                pj1 <- posi [[combs [1, j] ]]
+                pj2 <- posi [[combs [2, j] ]]
+                dj1 <- matrix (pj1, nrow = length (pj1), ncol = length (pj2))
+                dj2 <- t (matrix (pj2, nrow = length (pj2),
+                                  ncol = length (pj1)))
+                dmin [j] <- min (abs (dj1 - dj2))
+            }
+            phrase_len [i] <- max (dmin) + 1
         }
-        s [i] <- max (dmin) + 1
     }
 
-    indx <- order (-nkw, s) # highest #keywords; lowest s
+    indx <- order (-nkw, phrase_len) # highest #keywords; lowest s
 
-    data.frame (min_phrase_len = s [indx],
+    data.frame (min_phrase_len = phrase_len [indx],
                 num_key_words = nkw [indx],
                 pkg_names = pkg_names [indx],
                 stringsAsFactors = FALSE)
