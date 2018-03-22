@@ -1,5 +1,5 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-[![Project Status: Concept.](http://www.repostatus.org/badges/latest/concept.svg)](http://www.repostatus.org/#concept)
+[![Build Status](https://travis-ci.org/ropenscilabs/flipper.svg)](https://travis-ci.org/ropenscilabs/flipper) [![Project Status: Concept.](http://www.repostatus.org/badges/latest/concept.svg)](http://www.repostatus.org/#concept)
 
 flipper
 =======
